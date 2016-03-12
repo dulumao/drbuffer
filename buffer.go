@@ -116,37 +116,32 @@ func (buffer *ringBuffer) PopN(maxPacketsCount int) [][]byte {
 	if *buffer.nextReadFrom == *buffer.nextWriteFrom {
 		return buffer.reusablePacketList[:0]
 	}
-	r1From, r1To := uint32(0), uint32(0) // [r1From, r1To) the first region to read
-	r2From, r2To := uint32(0), uint32(0) // [r2From, r2To) the second region to read, might not needed
 	if *buffer.nextReadFrom > *buffer.nextWriteFrom {
 		// write is in the next lap now, we finish the first lap at wrapAt
-		r1From = *buffer.nextReadFrom
-		r1To = *buffer.wrapAt
-		// catch up the second lap
-		r2From = 0
-		r2To = *buffer.nextWriteFrom
+		packetsCount, readTo := buffer.readRegion(*buffer.nextReadFrom, *buffer.wrapAt, 0, maxPacketsCount)
+		if packetsCount >= maxPacketsCount {
+			*buffer.nextReadFrom = readTo
+			return buffer.reusablePacketList[:packetsCount]
+		} else {
+			// catch up the second lap
+			packetsCount, readTo = buffer.readRegion(0, *buffer.nextWriteFrom, packetsCount, maxPacketsCount)
+			*buffer.nextReadFrom = readTo
+			return buffer.reusablePacketList[:packetsCount]
+		}
 	} else {
 		// we are at the same lap
-		r1From = *buffer.nextReadFrom
-		r1To = *buffer.nextWriteFrom
+		packetsCount, readTo := buffer.readRegion(*buffer.nextReadFrom, *buffer.nextWriteFrom, 0, maxPacketsCount)
+		*buffer.nextReadFrom = readTo
+		return buffer.reusablePacketList[:packetsCount]
 	}
-	packetsCount := 0
-	if r2From == r2To {
-		packetsCount = buffer.readRegion(r1From, r1To, 0, maxPacketsCount)
-		*buffer.nextReadFrom = r1To
-	} else {
-		packetsCount = buffer.readRegion(r1From, r1To, 0, maxPacketsCount)
-		packetsCount = buffer.readRegion(r2From, r2To, packetsCount, maxPacketsCount)
-		*buffer.nextReadFrom = r2To
-	}
-	return buffer.reusablePacketList[:packetsCount]
 }
 
-func (buffer *ringBuffer) readRegion(readFrom, readTo uint32, packetsCount int, maxPacketsCount int) int {
+func (buffer *ringBuffer) readRegion(readFrom, readTo uint32, packetsCount int, maxPacketsCount int) (int, uint32) {
 	if IS_DEBUG {
 		fmt.Println("read [", readFrom, ",", readTo, ")")
 	}
-	for pos := readFrom; pos < readTo && packetsCount < maxPacketsCount; {
+	pos := readFrom
+	for ; pos < readTo && packetsCount < maxPacketsCount; {
 		if IS_DEBUG {
 			fmt.Println("read packet of size: ", packet(buffer.data[pos:]).size())
 		}
@@ -155,7 +150,7 @@ func (buffer *ringBuffer) readRegion(readFrom, readTo uint32, packetsCount int, 
 		pos = pos + 2 + uint32(len(p))
 		packetsCount += 1
 	}
-	return packetsCount
+	return packetsCount, pos
 }
 
 func (buffer *ringBuffer) PopOne() []byte {
