@@ -1,2 +1,2 @@
 # drbuffer
-druable ring buffer with variable length element
+druable ring buffer (drbuffer) with variable length element
