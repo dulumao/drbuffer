@@ -19,6 +19,7 @@ type ringBuffer struct {
 	wrapAt        *uint32
 	nextReadFrom  *uint32
 	nextReadAtSameLap  bool
+	shouldResetWrapAt  bool
 	reusablePacketList [][]byte
 }
 
@@ -36,6 +37,7 @@ func NewRingBuffer(meta []byte, buffer []byte, nextReadAt uint32) *ringBuffer {
 		nextReadFrom: new(uint32),
 		reusablePacketList: make([][]byte, MAX_PACKETS_READ_ONE_TIME),
 		nextReadAtSameLap: true,
+		shouldResetWrapAt: false,
 	}
 }
 
@@ -103,17 +105,20 @@ func (buffer *ringBuffer) repelReadPointers(writeFrom, writeTo uint32) {
 	if writeFrom <= *buffer.lastReadTo && *buffer.lastReadTo < writeTo {
 		// move lastReadTo to avoid overwrite, 0 always point to a valid packet
 		*buffer.lastReadTo = 0
-	}
-	if writeFrom <= *buffer.nextReadFrom && *buffer.nextReadFrom < writeTo {
-		// move nextReadFrom to avoid overwrite, 0 always point to a valid packet
+		*buffer.wrapAt = 0
 		*buffer.nextReadFrom = 0
 		buffer.nextReadAtSameLap = true
 	}
+	// do not need to check buffer.nextReadFrom as buffer.lastReadTo will always be encountered first
 }
 
 func (buffer *ringBuffer) PopN(maxPacketsCount int) [][]byte {
 	if maxPacketsCount > MAX_PACKETS_READ_ONE_TIME {
 		maxPacketsCount = MAX_PACKETS_READ_ONE_TIME
+	}
+	if buffer.shouldResetWrapAt {
+		buffer.shouldResetWrapAt = false
+		*buffer.wrapAt = 0
 	}
 	*buffer.lastReadTo = *buffer.nextReadFrom
 	r1From, r1To := uint32(0), uint32(0) // [r1From, r1To) the first region to read
@@ -143,6 +148,7 @@ func (buffer *ringBuffer) PopN(maxPacketsCount int) [][]byte {
 	} else {
 		packetsCount = buffer.readRegion(r1From, r1To, 0, maxPacketsCount)
 		buffer.nextReadAtSameLap = true
+		buffer.shouldResetWrapAt = true
 		packetsCount = buffer.readRegion(r2From, r2To, packetsCount, maxPacketsCount)
 		*buffer.nextReadFrom = r2To
 	}

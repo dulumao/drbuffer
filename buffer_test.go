@@ -114,9 +114,9 @@ func Test_push_should_not_override_lastReadTo_after_wrap(t *testing.T) {
 	buffer.PushOne([]byte("C"))
 	buffer.PushOne([]byte("DD"))
 	assert(*buffer.nextWriteFrom, "==", uint32(4))
-	assert(*buffer.nextReadFrom, "==", uint32(6))
+	assert(*buffer.nextReadFrom, "==", uint32(0))
 	assert(*buffer.lastReadTo, "==", uint32(0)) // can not point to 3 as it is invalid region now
-	assert(*buffer.wrapAt, "==", uint32(9))
+	assert(*buffer.wrapAt, "==", uint32(0))
 	assert(buffer.data, "==", []byte{
 		2, 0, byte('D'), byte('D'), // 4th packet <-- lastReadTo
 		0, byte('B'), // 2nd packet, partially overwrite
@@ -155,40 +155,12 @@ func Test_push_should_not_override_lastReadTo_before_wrap(t *testing.T) {
 	})
 	buffer.PushOne([]byte("E"))
 	assert(*buffer.nextWriteFrom, "==", uint32(6))
-	assert(*buffer.nextReadFrom, "==", uint32(6))
+	assert(*buffer.nextReadFrom, "==", uint32(0))
 	assert(*buffer.lastReadTo, "==", uint32(0)) // index 3 was overwritten
-	assert(*buffer.wrapAt, "==", uint32(9))
+	assert(*buffer.wrapAt, "==", uint32(0))
 	assert(buffer.data, "==", []byte{
 		1, 0, byte('D'), // 4th packet <-- lastReadTo
 		1, 0, byte('E'), // 5th packet
-		1, 0, byte('C'), // 3th packet
-		0, // excluded by wrap at pointer
-	})
-}
-
-func Test_push_should_not_override_nextReadFrom(t *testing.T) {
-	assert := NewAssert(t)
-	buffer := newBuffer(10)
-	buffer.PushOne([]byte("A"))
-	buffer.PopOne()
-	assert(*buffer.nextWriteFrom, "==", uint32(3))
-	assert(*buffer.nextReadFrom, "==", uint32(3))
-	assert(*buffer.lastReadTo, "==", uint32(0))
-	assert(*buffer.wrapAt, "==", uint32(0))
-	assert(buffer.data, "==", []byte{
-		1, 0, byte('A'), // 1st packet <-- nextReadFrom
-		0, 0, 0, 0, 0, 0, 0, // not used yet
-	})
-	buffer.PushOne([]byte("B"))
-	buffer.PushOne([]byte("C"))
-	buffer.PushOne([]byte("DD"))
-	assert(*buffer.nextWriteFrom, "==", uint32(4))
-	assert(*buffer.nextReadFrom, "==", uint32(0)) // can not point to 3 as it is invalid region now
-	assert(*buffer.lastReadTo, "==", uint32(0))
-	assert(*buffer.wrapAt, "==", uint32(9))
-	assert(buffer.data, "==", []byte{
-		2, 0, byte('D'), byte('D'), // 4th packet <-- nextReadFrom
-		0, byte('B'), // 2nd packet, partially overwrite
 		1, 0, byte('C'), // 3th packet
 		0, // excluded by wrap at pointer
 	})
@@ -199,12 +171,13 @@ func Test_pop_should_follow_wrapAt(t *testing.T) {
 	buffer := newBuffer(10)
 	buffer.PushOne([]byte("A"))
 	buffer.PopOne()
+	buffer.PopOne()
 	buffer.PushOne([]byte("B"))
 	buffer.PushOne([]byte("C"))
 	buffer.PushOne([]byte("D"))
 	assert(*buffer.nextWriteFrom, "==", uint32(3))
 	assert(*buffer.nextReadFrom, "==", uint32(3))
-	assert(*buffer.lastReadTo, "==", uint32(0))
+	assert(*buffer.lastReadTo, "==", uint32(3))
 	assert(*buffer.wrapAt, "==", uint32(9))
 	packets := buffer.PopN(1024)
 	assert(len(packets), "==", 3)
