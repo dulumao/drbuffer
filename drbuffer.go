@@ -5,7 +5,18 @@ import (
 	"syscall"
 	"fmt"
 	"errors"
+	"unsafe"
+	"reflect"
 )
+
+type DurableRingBuffer interface {
+	PushN(packets [][]byte)
+	PushOne(packet []byte)
+	PopN(n int) [][]byte
+	PopOne() []byte
+	Flush() error
+	Close() error
+}
 
 type durableRingBuffer struct {
 	ringBuffer
@@ -22,7 +33,7 @@ func (err annotatedError) Error() string {
 	return fmt.Sprintf("%s: %s", err.annotation, err.originalError.Error())
 }
 
-func Open(filePath string, nkiloBytes int) (*durableRingBuffer, error) {
+func Open(filePath string, nkiloBytes int) (DurableRingBuffer, error) {
 	isNewFile, fileObj, fileSize, err := openOrCreateFile(filePath, nkiloBytes)
 	if err != nil {
 		return nil, annotatedError{err, "failed to open or create file"}
@@ -53,6 +64,16 @@ func (buffer *durableRingBuffer) Close() error {
 		return annotatedError{err, "failed to munmap"}
 	}
 	return buffer.file.Close()
+}
+
+func (buffer *durableRingBuffer) Flush() error {
+	header := (*reflect.SliceHeader)(unsafe.Pointer(&buffer.mmappedFile))
+	_, _, errno := syscall.Syscall(syscall.SYS_MSYNC, header.Data, uintptr(header.Len), syscall.MS_SYNC)
+	if errno != 0 {
+		return syscall.Errno(errno)
+	} else {
+		return nil
+	}
 }
 
 func openOrCreateFile(filePath string, nkiloBytes int) (bool, *os.File, int, error) {

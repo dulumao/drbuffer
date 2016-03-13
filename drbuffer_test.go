@@ -23,7 +23,19 @@ func Test_open_existing_file(t *testing.T) {
 	assert(buffer.PopOne(), "==", nil)
 }
 
-func openNew(assert Assert) *durableRingBuffer {
+func Test_perf(t *testing.T) {
+	t.Skip("slow")
+	assert := NewAssert(t)
+	assert(ensureFileNotExist("/tmp/perf"), "==", nil)
+	buffer, err := Open("/tmp/perf", 1024 * 128)
+	assert(err, "==", nil)
+	assert(buffer, "!=", nil)
+	for i := 0; i < 10000; i++ {
+		buffer.PushOne([]byte("A"))
+	}
+}
+
+func openNew(assert Assert) DurableRingBuffer {
 	assert(ensureFileNotExist("/tmp/drbuffer"), "==", nil)
 	buffer, err := Open("/tmp/drbuffer", 1)
 	assert(err, "==", nil)
