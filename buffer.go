@@ -11,28 +11,29 @@ const MAX_PACKETS_READ_ONE_TIME = 1024
 const IS_DEBUG = false
 
 type ringBuffer struct {
-	meta          []byte // store the head/tail/wrap pointers
+	meta          []byte // store pointers
 	data          []byte // store packets
 	version       *uint32
 	nextWriteFrom *uint32
 	lastReadTo    *uint32
 	wrapAt        *uint32
-	nextReadFrom  *uint32
+	nextReadFrom  uint32
 	reusablePacketList [][]byte
 }
 
-func NewRingBuffer(meta []byte, buffer []byte, nextReadAt uint32) *ringBuffer {
+func NewRingBuffer(meta []byte, buffer []byte) *ringBuffer {
 	if len(meta) != META_SECTION_SIZE {
 		panic(fmt.Sprintf("meta should of size: %s", META_SECTION_SIZE))
 	}
+	lastReadTo := (*uint32)(unsafe.Pointer(&meta[8]))
 	return &ringBuffer{
 		meta:       meta,
 		data:       buffer,
 		version: (*uint32)(unsafe.Pointer(&meta[0])),
 		nextWriteFrom: (*uint32)(unsafe.Pointer(&meta[4])),
-		lastReadTo: (*uint32)(unsafe.Pointer(&meta[8])),
+		lastReadTo: lastReadTo,
 		wrapAt: (*uint32)(unsafe.Pointer(&meta[12])),
-		nextReadFrom: new(uint32),
+		nextReadFrom: *lastReadTo,
 		reusablePacketList: make([][]byte, MAX_PACKETS_READ_ONE_TIME),
 	}
 }
@@ -103,7 +104,7 @@ func (buffer *ringBuffer) repelReadPointers(writeFrom, writeTo uint32) {
 		// this way, when nextReadFrom == nextWriteTo, the queue is empty
 		*buffer.lastReadTo = 0
 		*buffer.wrapAt = 0
-		*buffer.nextReadFrom = 0
+		buffer.nextReadFrom = 0
 	}
 	// do not need to check buffer.nextReadFrom as buffer.lastReadTo will always be encountered first
 }
@@ -112,26 +113,26 @@ func (buffer *ringBuffer) PopN(maxPacketsCount int) [][]byte {
 	if maxPacketsCount > MAX_PACKETS_READ_ONE_TIME {
 		maxPacketsCount = MAX_PACKETS_READ_ONE_TIME
 	}
-	*buffer.lastReadTo = *buffer.nextReadFrom
-	if *buffer.nextReadFrom == *buffer.nextWriteFrom {
+	*buffer.lastReadTo = buffer.nextReadFrom
+	if buffer.nextReadFrom == *buffer.nextWriteFrom {
 		return buffer.reusablePacketList[:0]
 	}
-	if *buffer.nextReadFrom > *buffer.nextWriteFrom {
+	if buffer.nextReadFrom > *buffer.nextWriteFrom {
 		// write is in the next lap now, we finish the first lap at wrapAt
-		packetsCount, readTo := buffer.readRegion(*buffer.nextReadFrom, *buffer.wrapAt, 0, maxPacketsCount)
+		packetsCount, readTo := buffer.readRegion(buffer.nextReadFrom, *buffer.wrapAt, 0, maxPacketsCount)
 		if packetsCount >= maxPacketsCount {
-			*buffer.nextReadFrom = readTo
+			buffer.nextReadFrom = readTo
 			return buffer.reusablePacketList[:packetsCount]
 		} else {
 			// catch up the second lap
 			packetsCount, readTo = buffer.readRegion(0, *buffer.nextWriteFrom, packetsCount, maxPacketsCount)
-			*buffer.nextReadFrom = readTo
+			buffer.nextReadFrom = readTo
 			return buffer.reusablePacketList[:packetsCount]
 		}
 	} else {
 		// we are at the same lap
-		packetsCount, readTo := buffer.readRegion(*buffer.nextReadFrom, *buffer.nextWriteFrom, 0, maxPacketsCount)
-		*buffer.nextReadFrom = readTo
+		packetsCount, readTo := buffer.readRegion(buffer.nextReadFrom, *buffer.nextWriteFrom, 0, maxPacketsCount)
+		buffer.nextReadFrom = readTo
 		return buffer.reusablePacketList[:packetsCount]
 	}
 }

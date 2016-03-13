@@ -12,11 +12,15 @@ import (
 	"bytes"
 )
 
-func NewAssert(t *testing.T) func(left interface{}, op string, right interface{}) {
+type Assert func(left interface{}, op string, right interface{})
+
+func NewAssert(t *testing.T) Assert {
 	return func(left interface{}, op string, right interface{}) {
 		switch op {
 		case "==":
 			assertEq(t, left, right)
+		case "!=":
+			assertNe(t, left, right)
 		case ">":
 			assertGt(t, left, right)
 		default:
@@ -25,16 +29,31 @@ func NewAssert(t *testing.T) func(left interface{}, op string, right interface{}
 	}
 }
 
-func assertEq(t *testing.T, left interface{}, right interface{}) {
-	if right == nil {
-		if left != nil && !reflect.ValueOf(left).IsNil() {
-			Fail(t, "%s != nil", left)
-		}
-		return
+func assertNe(t *testing.T, left interface{}, right interface{}) {
+	if checkEq(t, left, right) {
+		Fail(t, "%s -= %s", left, right)
 	}
-	if !reflect.DeepEqual(left, right) {
+}
+
+func assertEq(t *testing.T, left interface{}, right interface{}) {
+	if !checkEq(t, left, right) {
 		Fail(t, "%s != %s", left, right)
 	}
+}
+func checkEq(t *testing.T, left interface{}, right interface{}) bool {
+	if right == nil {
+		if left == nil {
+			return true
+		}
+		leftVal := reflect.ValueOf(left)
+		switch leftVal.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Interface, reflect.Slice:
+			return leftVal.IsNil()
+		default:
+			return false
+		}
+	}
+	return reflect.DeepEqual(left, right)
 }
 
 func assertGt(t *testing.T, left interface {}, right interface{}) {
