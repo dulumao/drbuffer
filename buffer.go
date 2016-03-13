@@ -11,7 +11,6 @@ const MAX_PACKETS_READ_ONE_TIME = 1024
 const IS_DEBUG = false
 
 type ringBuffer struct {
-	meta          []byte // store pointers
 	data          []byte // store packets
 	version       *uint32
 	nextWriteFrom *uint32
@@ -27,7 +26,6 @@ func NewRingBuffer(meta []byte, buffer []byte) *ringBuffer {
 	}
 	lastReadTo := (*uint32)(unsafe.Pointer(&meta[8]))
 	return &ringBuffer{
-		meta:       meta,
 		data:       buffer,
 		version: (*uint32)(unsafe.Pointer(&meta[0])),
 		nextWriteFrom: (*uint32)(unsafe.Pointer(&meta[4])),
