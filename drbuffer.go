@@ -1,12 +1,12 @@
 package drbuffer
 
 import (
-	"os"
-	"syscall"
-	"fmt"
 	"errors"
-	"unsafe"
+	"fmt"
+	"os"
 	"reflect"
+	"syscall"
+	"unsafe"
 )
 
 type DurableRingBuffer interface {
@@ -20,13 +20,13 @@ type DurableRingBuffer interface {
 
 type durableRingBuffer struct {
 	ringBuffer
-	file *os.File
+	file        *os.File
 	mmappedFile []byte
 }
 
 type annotatedError struct {
 	originalError error
-	annotation	string
+	annotation    string
 }
 
 func (err annotatedError) Error() string {
@@ -38,14 +38,14 @@ func Open(filePath string, nkiloBytes int) (DurableRingBuffer, error) {
 	if err != nil {
 		return nil, annotatedError{err, "failed to open or create file"}
 	}
-	mmappedFile, err := syscall.Mmap(int(fileObj.Fd()), 0, fileSize, syscall.PROT_READ | syscall.PROT_WRITE, syscall.MAP_SHARED)
+	mmappedFile, err := syscall.Mmap(int(fileObj.Fd()), 0, fileSize, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
 	if err != nil {
 		return nil, annotatedError{err, "failed to mmap"}
 	}
 	syscall.Madvise(mmappedFile, syscall.MADV_SEQUENTIAL)
 	buffer := &durableRingBuffer{
-		ringBuffer: *NewRingBuffer(mmappedFile[:META_SECTION_SIZE], mmappedFile[META_SECTION_SIZE:]),
-		file: fileObj,
+		ringBuffer:  *NewRingBuffer(mmappedFile[:META_SECTION_SIZE], mmappedFile[META_SECTION_SIZE:]),
+		file:        fileObj,
 		mmappedFile: mmappedFile,
 	}
 	if isNewFile {
@@ -82,7 +82,7 @@ func openOrCreateFile(filePath string, nkiloBytes int) (bool, *os.File, int, err
 	if err != nil {
 		if os.IsNotExist(err) {
 			isNewFile = true
-			fileObj, err = os.OpenFile(filePath, os.O_RDWR | os.O_CREATE | os.O_TRUNC, 0644)
+			fileObj, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
 				return isNewFile, nil, 0, annotatedError{err, "failed to create new file"}
 			}

@@ -11,12 +11,12 @@ const MAX_PACKETS_READ_ONE_TIME = 1024
 const IS_DEBUG = false
 
 type ringBuffer struct {
-	data          []byte // store packets
-	version       *uint32
-	nextWriteFrom *uint32
-	lastReadTo    *uint32
-	wrapAt        *uint32
-	nextReadFrom  uint32
+	data               []byte // store packets
+	version            *uint32
+	nextWriteFrom      *uint32
+	lastReadTo         *uint32
+	wrapAt             *uint32
+	nextReadFrom       uint32
 	reusablePacketList [][]byte
 }
 
@@ -26,12 +26,12 @@ func NewRingBuffer(meta []byte, buffer []byte) *ringBuffer {
 	}
 	lastReadTo := (*uint32)(unsafe.Pointer(&meta[8]))
 	return &ringBuffer{
-		data:       buffer,
-		version: (*uint32)(unsafe.Pointer(&meta[0])),
-		nextWriteFrom: (*uint32)(unsafe.Pointer(&meta[4])),
-		lastReadTo: lastReadTo,
-		wrapAt: (*uint32)(unsafe.Pointer(&meta[12])),
-		nextReadFrom: *lastReadTo,
+		data:               buffer,
+		version:            (*uint32)(unsafe.Pointer(&meta[0])),
+		nextWriteFrom:      (*uint32)(unsafe.Pointer(&meta[4])),
+		lastReadTo:         lastReadTo,
+		wrapAt:             (*uint32)(unsafe.Pointer(&meta[12])),
+		nextReadFrom:       *lastReadTo,
 		reusablePacketList: make([][]byte, MAX_PACKETS_READ_ONE_TIME),
 	}
 }
@@ -55,7 +55,7 @@ func (p packet) write(bytes []byte) {
 }
 
 func (p packet) read() packet {
-	return p[2 : 2 + p.size()]
+	return p[2 : 2+p.size()]
 }
 
 func (buffer *ringBuffer) PushN(pList [][]byte) {
@@ -70,7 +70,7 @@ func (buffer *ringBuffer) PushN(pList [][]byte) {
 }
 
 func (buffer *ringBuffer) PushOne(p []byte) {
-	if len(p) > len(buffer.data) - 2 {
+	if len(p) > len(buffer.data)-2 {
 		panic(fmt.Sprintf("packet to push is too large: %s", len(p)))
 	}
 	writeFrom := *buffer.nextWriteFrom
@@ -140,7 +140,7 @@ func (buffer *ringBuffer) readRegion(readFrom, readTo uint32, packetsCount int, 
 		fmt.Println("read [", readFrom, ",", readTo, ")")
 	}
 	pos := readFrom
-	for ; pos < readTo && packetsCount < maxPacketsCount; {
+	for pos < readTo && packetsCount < maxPacketsCount {
 		if IS_DEBUG {
 			fmt.Println("read packet of size: ", packet(buffer.data[pos:]).size())
 		}
