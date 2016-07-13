@@ -1,8 +1,8 @@
 package drbuffer
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
 func Test_new_file(t *testing.T) {
@@ -27,7 +27,7 @@ func Test_perf(t *testing.T) {
 	t.Skip("slow")
 	assert := NewAssert(t)
 	assert(ensureFileNotExist("/tmp/perf"), "==", nil)
-	buffer, err := Open("/tmp/perf", 1024 * 128)
+	buffer, err := Open("/tmp/perf", 1024*128)
 	assert(err, "==", nil)
 	assert(buffer, "!=", nil)
 	for i := 0; i < 10000; i++ {

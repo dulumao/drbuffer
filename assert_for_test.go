@@ -1,6 +1,8 @@
 package drbuffer
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -8,8 +10,6 @@ import (
 	"testing"
 	"unicode"
 	"unicode/utf8"
-	"bufio"
-	"bytes"
 )
 
 type Assert func(left interface{}, op string, right interface{})
@@ -56,7 +56,7 @@ func checkEq(t *testing.T, left interface{}, right interface{}) bool {
 	return reflect.DeepEqual(left, right)
 }
 
-func assertGt(t *testing.T, left interface {}, right interface{}) {
+func assertGt(t *testing.T, left interface{}, right interface{}) {
 	if !checkGt(t, left, right) {
 		Fail(t, "%s <= %s", left, right)
 	}
@@ -66,7 +66,7 @@ func checkGt(t *testing.T, left interface{}, right interface{}) bool {
 	leftAsInt, ok := left.(int)
 	if ok {
 		rightAsInt, ok := right.(int)
-		if (ok) {
+		if ok {
 			return leftAsInt > rightAsInt
 		} else {
 			Fail(t, "%s not comparable to %s", reflect.TypeOf(left), reflect.TypeOf(right))
@@ -75,7 +75,7 @@ func checkGt(t *testing.T, left interface{}, right interface{}) bool {
 	leftAsUint32, ok := left.(uint32)
 	if ok {
 		rightAsUint32, ok := right.(uint32)
-		if (ok) {
+		if ok {
 			return leftAsUint32 > rightAsUint32
 		} else {
 			Fail(t, "%s not comparable to %s", reflect.TypeOf(left), reflect.TypeOf(right))
